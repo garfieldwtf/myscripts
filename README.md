@@ -246,18 +246,3 @@ sudo yum install curl
 ## Related Scripts
 
 Check out other useful scripts at [garfieldwtf.github.io/myscripts](https://garfieldwtf.github.io/myscripts)
-```
-
-This README provides:
-
-1. **Clear installation instructions** including the curl one-liner you requested
-2. **Usage examples** for different scenarios
-3. **Sample output** so users know what to expect
-4. **Troubleshooting** section for common issues
-5. **Customization options** for advanced users
-6. **Security notes** to assure users it's safe
-7. **Support information** for your specific hosting method
-
-Save this as `README.md` in your repository, and when users run:
-```bash
-curl -s https://garfieldwtf.github.io/myscripts/system_report.sh | bash
