@@ -1,5 +1,3 @@
-<div align="center">
-
 # 🖥️ System Information Report Script
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -8,15 +6,9 @@
 [![WSL](https://img.shields.io/badge/WSL-Compatible-0a5c89.svg)](https://docs.microsoft.com/en-us/windows/wsl/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-**A comprehensive, colorful bash script that gives you instant insights into your system's health and performance**
+> **A comprehensive, colorful bash script that gives you instant insights into your system's health and performance**
 
-[Quick Start](#-quick-start) • [Features](#-features) • [Usage](#-usage) • [Screenshots](#-screenshots) • [Customization](#-customization)
-
-</div>
-
----
-
-## 📋 Table of Contents
+## 📋 Quick Navigation
 
 - [Quick Start](#-quick-start)
 - [Features](#-features)
@@ -59,7 +51,7 @@ chmod +x system_report.sh
 ./system_report.sh
 ```
 
-> **✨ Pro Tip:** Bookmark this page or save the command as an alias:
+> **💡 Pro Tip:** Add this alias to your `~/.bashrc` for instant access:
 > ```bash
 > alias sysinfo='curl -s https://garfieldwtf.github.io/myscripts/system_report.sh | bash'
 > ```
@@ -68,18 +60,11 @@ chmod +x system_report.sh
 
 ## ✨ Features
 
-<table>
-<tr>
-<td width="50%">
-
 ### 💾 Storage & Disks
 - Physical disk inventory
 - Partition tables with mount points
 - Real-time usage statistics
 - Smart filtering (excludes virtual filesystems)
-
-</td>
-<td width="50%">
 
 ### 🧠 Memory Management
 - Total RAM & available memory
@@ -87,19 +72,11 @@ chmod +x system_report.sh
 - Swap space monitoring
 - Memory pressure indicators
 
-</td>
-</tr>
-<tr>
-<td width="50%">
-
 ### 🔧 CPU Intelligence
 - Processor model & architecture
 - Core/thread count
 - Real-time usage percentage
 - Frequency scaling info
-
-</td>
-<td width="50%">
 
 ### 📊 Performance Metrics
 - Load average (1,5,15 min)
@@ -107,15 +84,12 @@ chmod +x system_report.sh
 - System uptime & user sessions
 - Historical trend data
 
-</td>
-</tr>
-</table>
-
 ---
 
 ## 🎨 Screenshots
 
 ### Main Report Output
+
 ```
 ╔════════════════════════════════════════════════════════════════════════════╗
 ║                         SYSTEM INFORMATION REPORT                         ║
@@ -175,6 +149,7 @@ Top 5 Memory-Consuming Processes:
 ## 📖 Usage Examples
 
 ### Basic Usage
+
 ```bash
 # Just run it
 ./system_report.sh
@@ -183,7 +158,8 @@ Top 5 Memory-Consuming Processes:
 bash system_report.sh
 ```
 
-### Save Output
+### Save Output to File
+
 ```bash
 # Save to file
 ./system_report.sh > system_report.txt
@@ -196,6 +172,7 @@ bash system_report.sh
 ```
 
 ### Remote Monitoring
+
 ```bash
 # Run on remote server via SSH
 ssh user@server 'curl -s https://garfieldwtf.github.io/myscripts/system_report.sh | bash'
@@ -205,6 +182,7 @@ ssh user@server 'curl -s https://garfieldwtf.github.io/myscripts/system_report.s
 ```
 
 ### Scheduled Reports
+
 ```bash
 # Add to crontab for daily reports at 9 AM
 0 9 * * * /path/to/system_report.sh > /var/log/system_report_$(date +\%Y\%m\%d).txt
@@ -223,7 +201,6 @@ ssh user@server 'curl -s https://garfieldwtf.github.io/myscripts/system_report.s
 - **Permissions**: User-level (no root required)
 
 ### Required Utilities
-The script uses standard Linux tools that come pre-installed on most distributions:
 
 | Utility | Purpose | Typical Package |
 |---------|---------|----------------|
@@ -236,6 +213,7 @@ The script uses standard Linux tools that come pre-installed on most distributio
 | `awk` | Text processing | gawk |
 
 ### Installation of Missing Utilities
+
 ```bash
 # Debian/Ubuntu
 sudo apt-get install coreutils procps util-linux gawk grep
@@ -262,7 +240,7 @@ sudo pacman -S coreutils procps-ng util-linux gawk grep
 - **Swap Usage**: Virtual memory utilization
 
 ### 3. CPU Details
-- **Model**: Exact processor型号
+- **Model**: Exact processor model
 - **Cores**: Physical and logical cores
 - **Frequency**: Current operating frequency
 
@@ -340,8 +318,6 @@ fi
 ---
 
 ## 🔧 Troubleshooting
-
-### Common Issues & Solutions
 
 <details>
 <summary><b>❌ "curl: command not found"</b></summary>
@@ -473,14 +449,14 @@ of this software and associated documentation files...
 
 ---
 
-<div align="center">
+## ⭐ Show Your Support
 
-**⭐ If this script saved you time, give it a star on GitHub! ⭐**
+**If this script saved you time, please give it a star on GitHub!**
+
+[![Star on GitHub](https://img.shields.io/github/stars/garfieldwtf/myscripts.svg?style=social)](https://github.com/garfieldwtf/myscripts/stargazers)
 
 ---
 
 **Made with ❤️ by garfieldwtf**
 
-[⬆ Back to Top](#-system-information-report-script)
-
-</div>
+[Back to Top](#-system-information-report-script)
