@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# Script to collect system information - CLEAN VERSION without color code issues
+# Script to collect system information - with GlusterFS support
+# Works with WSL, standard Linux, and GlusterFS mounts
 
-# Only use colors for headers and non-tabular data, and ensure they don't leak into data
+# Only use colors for headers and non-tabular data
 if [ -t 1 ]; then
     RED='\033[0;31m'
     GREEN='\033[0;32m'
@@ -24,22 +25,6 @@ draw_line() {
 # Function to print section header
 print_header() {
     echo -e "\n${BOLD}${BLUE}=== $1 ===${NC}"
-}
-
-# Function to print colored value safely
-print_colored_value() {
-    local label=$1
-    local value=$2
-    local percent=$3
-    local color=$GREEN
-    
-    if [ $percent -ge 90 ]; then
-        color=$RED
-    elif [ $percent -ge 75 ]; then
-        color=$YELLOW
-    fi
-    
-    echo -e "  ${YELLOW}${label}:${NC} ${color}${value}${NC}"
 }
 
 # Start of report
@@ -69,12 +54,22 @@ else
     echo "  • No physical disks detected (virtualized environment)"
 fi
 
-# Partitions and mount points - COMPLETELY PLAIN TEXT
-echo -e "\n${YELLOW}Partitions and Mount Points:${NC}"
-printf "%-30s %-10s %-15s %-15s %-8s %s\n" "FILESYSTEM" "SIZE" "USED" "AVAIL" "USE%" "MOUNTPOINT"
-echo "--------------------------------------------------------------------------------------------------------"
+# Check for GlusterFS volumes
+echo -e "\n${YELLOW}GlusterFS Detection:${NC}"
+GLUSTER_VOLUMES=$(df -h 2>/dev/null | grep -i gluster | wc -l)
+if [ $GLUSTER_VOLUMES -gt 0 ]; then
+    echo "  • Detected $GLUSTER_VOLUMES GlusterFS mount(s)"
+else
+    echo "  • No GlusterFS mounts detected"
+fi
 
-# Use df without any formatting that could add color codes
+# Partitions and mount points - INCLUDING GlusterFS
+echo -e "\n${YIELD}Filesystem Information:${NC}"
+printf "%-35s %-10s %-15s %-15s %-8s %s\n" "FILESYSTEM" "SIZE" "USED" "AVAIL" "USE%" "MOUNTPOINT"
+echo "----------------------------------------------------------------------------------------------------------------"
+
+# Modified df command to include GlusterFS and other filesystems
+# Excluding only tmpfs, devtmpfs, squashfs, overlay but keeping GlusterFS
 df -h -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null | tail -n +2 | while read filesystem size used avail use_percent mount; do
     # Skip if mount point is empty or weird
     if [ -z "$mount" ] || [ "$mount" = "on" ]; then
@@ -84,18 +79,24 @@ df -h -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null | tail -n +2 | whi
     # Clean up the mount point (take first field only)
     mount=$(echo "$mount" | awk '{print $1}')
     
-    # Skip snap and loop devices to reduce clutter
+    # Skip snap and loop devices to reduce clutter (optional - comment out to see them)
     if [[ "$filesystem" == *"snap"* ]] || [[ "$filesystem" == *"loop"* ]]; then
         continue
     fi
     
-    # Skip if filesystem is 'none' or 'tmpfs' or 'rootfs'
-    if [ "$filesystem" = "none" ] || [ "$filesystem" = "tmpfs" ] || [ "$filesystem" = "rootfs" ]; then
+    # Skip if filesystem is 'none' or 'rootfs'
+    if [ "$filesystem" = "none" ] || [ "$filesystem" = "rootfs" ]; then
         continue
     fi
     
+    # Highlight GlusterFS mounts in output
+    if [[ "$filesystem" == *"gluster"* ]] || [[ "$mount" == *"gluster"* ]]; then
+        # Add a marker for GlusterFS
+        filesystem="${filesystem} [GlusterFS]"
+    fi
+    
     # Format percentage for display (plain text)
-    printf "%-30s %-10s %-15s %-15s %-8s %s\n" "$filesystem" "$size" "$used" "$avail" "$use_percent" "$mount"
+    printf "%-35s %-10s %-15s %-15s %-8s %s\n" "$filesystem" "$size" "$used" "$avail" "$use_percent" "$mount"
 done
 
 # 2. MEMORY INFORMATION (including swap)
@@ -257,13 +258,45 @@ echo -e "\n${YELLOW}System Uptime and Users:${NC}"
 uptime_info=$(uptime | sed 's/^[ \t]*//')
 echo "  • ${uptime_info}"
 
+# GlusterFS-specific information (if mounted)
+if [ $GLUSTER_VOLUMES -gt 0 ]; then
+    print_header "GLUSTERFS DETAILS"
+    echo -e "${YELLOW}GlusterFS Volume Information:${NC}"
+    
+    # Show GlusterFS mount details
+    df -h 2>/dev/null | grep -i gluster | while read line; do
+        echo "  • $line"
+    done
+    
+    # Try to get Gluster volume info if gluster command is available
+    if command -v gluster &> /dev/null; then
+        echo -e "\n${YELLOW}GlusterFS Volume Status:${NC}"
+        gluster volume info 2>/dev/null | grep -E "Volume Name|Status|Number of Bricks" | while read line; do
+            echo "  • $line"
+        done
+    else
+        echo -e "\n${YELLOW}Note:${NC} 'gluster' command not available. Install glusterfs-client for detailed volume info."
+    fi
+fi
+
 # Optional: Show disk usage summary for important mount points
 echo -e "\n${YELLOW}Top 5 Largest Filesystems by Usage:${NC}"
 df -h -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null | tail -n +2 | \
     grep -v "snap" | grep -v "loop" | \
     sort -k5 -rn | head -5 | \
-    awk '{printf "  • %-15s %5s used on %s\n", $1, $5, $6}'
+    awk '{printf "  • %-20s %5s used on %s\n", $1, $5, $6}'
 
 # Draw final line
 draw_line
 echo -e "${BOLD}${GREEN}✓ Report Complete!${NC}\n"
+
+# GlusterFS-specific recommendations if usage is high
+if [ $GLUSTER_VOLUMES -gt 0 ]; then
+    # Check if any GlusterFS mount is above 80% usage
+    df -h 2>/dev/null | grep -i gluster | awk '{print $5}' | sed 's/%//' | while read percent; do
+        if [ "$percent" -ge 80 ]; then
+            echo -e "${YELLOW}⚠️  GlusterFS Volume Warning: One or more volumes are at ${percent}% usage${NC}"
+            echo -e "${YELLOW}   Consider adding bricks or cleaning up old data${NC}"
+        fi
+    done
+fi
