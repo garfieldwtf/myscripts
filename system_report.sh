@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Script to collect system information - with GlusterFS support
-# Works with WSL, standard Linux, and GlusterFS mounts
+# Script to collect system information - Full and Short modes
+# Usage: ./system_report.sh [--short|-s]
 
 # Only use colors for headers and non-tabular data
 if [ -t 1 ]; then
@@ -17,69 +17,99 @@ else
     RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; NC=''; BOLD=''; BOLD_OFF=''
 fi
 
+# Parse command line arguments
+SHORT_MODE=false
+if [[ "$1" == "--short" ]] || [[ "$1" == "-s" ]]; then
+    SHORT_MODE=true
+fi
+
 # Function to draw a separator line
 draw_line() {
-    printf "%80s\n" | tr ' ' '='
+    if [ "$SHORT_MODE" = false ]; then
+        printf "%80s\n" | tr ' ' '='
+    else
+        echo "----------------------------------------"
+    fi
 }
 
 # Function to print section header
 print_header() {
-    echo -e "\n${BOLD}${BLUE}=== $1 ===${NC}"
+    if [ "$SHORT_MODE" = false ]; then
+        echo -e "\n${BOLD}${BLUE}=== $1 ===${NC}"
+    else
+        echo -e "\n${BOLD}[$1]${NC}"
+    fi
 }
 
 # Start of report
-clear
-echo -e "${BOLD}${CYAN}"
-echo "╔════════════════════════════════════════════════════════════════════════════╗"
-echo "║                         SYSTEM INFORMATION REPORT                         ║"
-echo "╚════════════════════════════════════════════════════════════════════════════╝"
-echo -e "${NC}"
-echo -e "Generated on: $(date '+%Y-%m-%d %H:%M:%S')"
-echo -e "Hostname: $(hostname)"
+if [ "$SHORT_MODE" = false ]; then
+    clear
+    echo -e "${BOLD}${CYAN}"
+    echo "╔════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                         SYSTEM INFORMATION REPORT                         ║"
+    echo "╚════════════════════════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+    echo -e "Generated on: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo -e "Hostname: $(hostname)"
+else
+    echo "========================================"
+    echo "System Report - $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "Host: $(hostname)"
+    echo "========================================"
+fi
 draw_line
 
 # 1. DISK AND PARTITION INFORMATION
 print_header "DISK, PARTITIONS & MOUNTPOINTS"
 
-# Number of disks
-disk_count=$(lsblk -d -n -o NAME,TYPE 2>/dev/null | grep -c "disk" || echo "0")
-echo -e "${YELLOW}Total Physical Disks:${NC} $disk_count"
-
-if [ $disk_count -gt 0 ]; then
-    echo -e "${YELLOW}Disk List:${NC}"
-    lsblk -d -n -o NAME,SIZE,MODEL 2>/dev/null | head -20 | while read line; do
-        echo "  • $line"
-    done
-else
-    echo "  • No physical disks detected (virtualized environment)"
-fi
-
 # Check for GlusterFS volumes
-echo -e "\n${YELLOW}GlusterFS Detection:${NC}"
 GLUSTER_VOLUMES=$(df -h 2>/dev/null | grep -i gluster | wc -l)
-if [ $GLUSTER_VOLUMES -gt 0 ]; then
-    echo "  • Detected $GLUSTER_VOLUMES GlusterFS mount(s)"
+
+if [ "$SHORT_MODE" = false ]; then
+    # LONG MODE - Full detailed output
+    disk_count=$(lsblk -d -n -o NAME,TYPE 2>/dev/null | grep -c "disk" || echo "0")
+    echo -e "${YELLOW}Total Physical Disks:${NC} $disk_count"
+    
+    if [ $disk_count -gt 0 ]; then
+        echo -e "${YELLOW}Disk List:${NC}"
+        lsblk -d -n -o NAME,SIZE,MODEL 2>/dev/null | head -20 | while read line; do
+            echo "  • $line"
+        done
+    else
+        echo "  • No physical disks detected (virtualized environment)"
+    fi
+    
+    echo -e "\n${YELLOW}GlusterFS Detection:${NC}"
+    if [ $GLUSTER_VOLUMES -gt 0 ]; then
+        echo "  • Detected $GLUSTER_VOLUMES GlusterFS mount(s)"
+    else
+        echo "  • No GlusterFS mounts detected"
+    fi
+    
+    echo -e "\n${YELLOW}Partitions and Mount Points:${NC}"
+    printf "%-30s %-10s %-15s %-15s %-8s %s\n" "FILESYSTEM" "SIZE" "USED" "AVAIL" "USE%" "MOUNTPOINT"
+    echo "--------------------------------------------------------------------------------------------------------"
 else
-    echo "  • No GlusterFS mounts detected"
+    # SHORT MODE - Compact view
+    echo -e "${YELLOW}Disk Layout:${NC}"
+    lsblk -o NAME,SIZE,TYPE,MOUNTPOINT 2>/dev/null | head -15
+    echo ""
+    echo -e "${YELLOW}Filesystem Usage:${NC}"
+    printf "%-25s %-8s %-8s %-8s %s\n" "MOUNTPOINT" "SIZE" "USED" "AVAIL" "USE%"
+    echo "----------------------------------------------------------"
 fi
 
-# Partitions and mount points - INCLUDING GlusterFS
-echo -e "\n${YIELD}Filesystem Information:${NC}"
-printf "%-35s %-10s %-15s %-15s %-8s %s\n" "FILESYSTEM" "SIZE" "USED" "AVAIL" "USE%" "MOUNTPOINT"
-echo "----------------------------------------------------------------------------------------------------------------"
-
-# Modified df command to include GlusterFS and other filesystems
-# Excluding only tmpfs, devtmpfs, squashfs, overlay but keeping GlusterFS
+# Generate filesystem list (common for both modes)
 df -h -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null | tail -n +2 | while read filesystem size used avail use_percent mount; do
     # Skip if mount point is empty or weird
     if [ -z "$mount" ] || [ "$mount" = "on" ]; then
         continue
     fi
     
-    # Clean up the mount point (take first field only)
+    # Clean up the mount point
     mount=$(echo "$mount" | awk '{print $1}')
     
-    # Skip snap and loop devices to reduce clutter (optional - comment out to see them)
+    # Skip snap and loop devices
     if [[ "$filesystem" == *"snap"* ]] || [[ "$filesystem" == *"loop"* ]]; then
         continue
     fi
@@ -89,20 +119,25 @@ df -h -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null | tail -n +2 | whi
         continue
     fi
     
-    # Highlight GlusterFS mounts in output
-    if [[ "$filesystem" == *"gluster"* ]] || [[ "$mount" == *"gluster"* ]]; then
-        # Add a marker for GlusterFS
-        filesystem="${filesystem} [GlusterFS]"
+    if [ "$SHORT_MODE" = false ]; then
+        # LONG MODE - Full details
+        printf "%-30s %-10s %-15s %-15s %-8s %s\n" "$filesystem" "$size" "$used" "$avail" "$use_percent" "$mount"
+    else
+        # SHORT MODE - Just mount points with color coding
+        usage_num=$(echo "$use_percent" | sed 's/%//')
+        if [ $usage_num -ge 80 ]; then
+            use_percent="${RED}${use_percent}${NC}"
+        elif [ $usage_num -ge 60 ]; then
+            use_percent="${YELLOW}${use_percent}${NC}"
+        fi
+        printf "%-25s %-8s %-8s %-8s %s\n" "$mount" "$size" "$used" "$avail" "$use_percent"
     fi
-    
-    # Format percentage for display (plain text)
-    printf "%-35s %-10s %-15s %-15s %-8s %s\n" "$filesystem" "$size" "$used" "$avail" "$use_percent" "$mount"
 done
 
 # 2. MEMORY INFORMATION (including swap)
 print_header "MEMORY & SWAP UTILIZATION"
 
-# Get memory info - PLAIN TEXT (no colors)
+# Get memory info
 mem_total=$(free -h | awk '/^Mem:/ {print $2}')
 mem_used=$(free -h | awk '/^Mem:/ {print $3}')
 mem_free=$(free -h | awk '/^Mem:/ {print $4}')
@@ -118,13 +153,19 @@ else
     mem_usage_percent=0
 fi
 
-echo -e "${YELLOW}RAM Information:${NC}"
-echo "  • Total Memory: ${mem_total}"
-echo "  • Used Memory: ${mem_used}"
-echo "  • Free Memory: ${mem_free}"
-echo "  • Available Memory: ${mem_available}"
+if [ "$SHORT_MODE" = false ]; then
+    # LONG MODE - Detailed memory info
+    echo -e "${YELLOW}RAM Information:${NC}"
+    echo "  • Total Memory: ${mem_total}"
+    echo "  • Used Memory: ${mem_used}"
+    echo "  • Free Memory: ${mem_free}"
+    echo "  • Available Memory: ${mem_available}"
+else
+    # SHORT MODE - Compact memory info
+    echo -e "RAM: ${mem_used} / ${mem_total} used | Available: ${mem_available}"
+fi
 
-# Color only the percentage value
+# Color the percentage value
 if [ $mem_usage_percent -ge 90 ]; then
     mem_color=$RED
 elif [ $mem_usage_percent -ge 75 ]; then
@@ -132,7 +173,12 @@ elif [ $mem_usage_percent -ge 75 ]; then
 else
     mem_color=$GREEN
 fi
-echo -e "  • Usage Percentage: ${mem_color}${mem_usage_percent}%${NC}"
+
+if [ "$SHORT_MODE" = false ]; then
+    echo -e "  • Usage Percentage: ${mem_color}${mem_usage_percent}%${NC}"
+else
+    echo -e "Usage: ${mem_color}${mem_usage_percent}%${NC}"
+fi
 
 # SWAP Information
 swap_total=$(free -h | awk '/^Swap:/ {print $2}')
@@ -145,20 +191,33 @@ swap_used_raw=$(free -k | awk '/^Swap:/ {print $3}')
 if [ $swap_total_raw -gt 0 ]; then
     swap_usage_percent=$((swap_used_raw * 100 / swap_total_raw))
     
-    echo -e "\n${YELLOW}SWAP Information:${NC}"
-    echo "  • Total Swap: ${swap_total}"
-    echo "  • Used Swap: ${swap_used}"
-    echo "  • Free Swap: ${swap_free}"
+    if [ "$SHORT_MODE" = false ]; then
+        echo -e "\n${YELLOW}SWAP Information:${NC}"
+        echo "  • Total Swap: ${swap_total}"
+        echo "  • Used Swap: ${swap_used}"
+        echo "  • Free Swap: ${swap_free}"
+    else
+        echo -n "SWAP: ${swap_used} / ${swap_total} used "
+    fi
     
     if [ $swap_usage_percent -ge 50 ]; then
         swap_color=$YELLOW
     else
         swap_color=$GREEN
     fi
-    echo -e "  • Usage Percentage: ${swap_color}${swap_usage_percent}%${NC}"
+    
+    if [ "$SHORT_MODE" = false ]; then
+        echo -e "  • Usage Percentage: ${swap_color}${swap_usage_percent}%${NC}"
+    else
+        echo -e "(${swap_color}${swap_usage_percent}%${NC})"
+    fi
 else
-    echo -e "\n${YELLOW}SWAP Information:${NC}"
-    echo "  • No swap configured"
+    if [ "$SHORT_MODE" = false ]; then
+        echo -e "\n${YELLOW}SWAP Information:${NC}"
+        echo "  • No swap configured"
+    else
+        echo "SWAP: None configured"
+    fi
 fi
 
 # 3. CPU INFORMATION
@@ -169,13 +228,9 @@ cpu_model=$(lscpu 2>/dev/null | grep "Model name" | cut -d':' -f2 | sed 's/^[ \t
 if [ -z "$cpu_model" ]; then
     cpu_model=$(lscpu 2>/dev/null | grep "^CPU:" | cut -d':' -f2 | sed 's/^[ \t]*//')
 fi
-
 if [ -z "$cpu_model" ]; then
     cpu_model="Unknown (virtualized environment)"
 fi
-
-echo -e "${YELLOW}CPU Details:${NC}"
-echo "  • CPU Model: ${cpu_model}"
 
 # CPU Cores
 if command -v nproc &> /dev/null; then
@@ -188,14 +243,23 @@ cpu_threads=$(lscpu 2>/dev/null | grep "Thread(s) per core" | awk '{print $4}')
 cpu_sockets=$(lscpu 2>/dev/null | grep "Socket(s)" | awk '{print $2}')
 cpu_cores_per_socket=$(lscpu 2>/dev/null | grep "Core(s) per socket" | awk '{print $4}')
 
-echo "  • Total Cores: ${cpu_cores}"
-[ -n "$cpu_threads" ] && [ "$cpu_threads" != "" ] && echo "  • Threads per Core: ${cpu_threads}"
-[ -n "$cpu_sockets" ] && [ "$cpu_sockets" != "" ] && echo "  • Sockets: ${cpu_sockets}"
-[ -n "$cpu_cores_per_socket" ] && [ "$cpu_cores_per_socket" != "" ] && echo "  • Cores per Socket: ${cpu_cores_per_socket}"
+if [ "$SHORT_MODE" = false ]; then
+    # LONG MODE - Detailed CPU info
+    echo -e "${YELLOW}CPU Details:${NC}"
+    echo "  • CPU Model: ${cpu_model}"
+    echo "  • Total Cores: ${cpu_cores}"
+    [ -n "$cpu_threads" ] && [ "$cpu_threads" != "" ] && echo "  • Threads per Core: ${cpu_threads}"
+    [ -n "$cpu_sockets" ] && [ "$cpu_sockets" != "" ] && echo "  • Sockets: ${cpu_sockets}"
+    [ -n "$cpu_cores_per_socket" ] && [ "$cpu_cores_per_socket" != "" ] && echo "  • Cores per Socket: ${cpu_cores_per_socket}"
+else
+    # SHORT MODE - Compact CPU info
+    echo "CPU: ${cpu_model}"
+    echo "Cores: ${cpu_cores}"
+fi
 
 # CPU Frequency
 cpu_mhz=$(lscpu 2>/dev/null | grep "CPU MHz" | awk '{print $3}')
-if [ -n "$cpu_mhz" ]; then
+if [ -n "$cpu_mhz" ] && [ "$SHORT_MODE" = false ]; then
     echo "  • CPU Frequency: ${cpu_mhz} MHz"
 fi
 
@@ -204,9 +268,14 @@ print_header "SYSTEM LOAD & CPU USAGE"
 
 # Load Average
 load_avg=$(uptime | awk -F'load average:' '{print $2}' | sed 's/^[ \t]*//')
-echo -e "${YELLOW}Load Average (1, 5, 15 min):${NC} ${load_avg}"
 
-# Get CPU usage percentage - using /proc/stat for accuracy
+if [ "$SHORT_MODE" = false ]; then
+    echo -e "${YELLOW}Load Average (1, 5, 15 min):${NC} ${load_avg}"
+else
+    echo "Load Average: ${load_avg}"
+fi
+
+# Get CPU usage percentage
 cpu_usage="N/A"
 
 if [ -f /proc/stat ]; then
@@ -248,54 +317,71 @@ if [ "$cpu_usage" != "N/A" ] && [ "$cpu_usage" -ge 0 ]; then
     else
         cpu_color=$GREEN
     fi
-    echo -e "${YELLOW}CPU Usage:${NC} ${cpu_color}${cpu_usage}%${NC}"
+    
+    if [ "$SHORT_MODE" = false ]; then
+        echo -e "${YELLOW}CPU Usage:${NC} ${cpu_color}${cpu_usage}%${NC}"
+    else
+        echo -e "CPU Usage: ${cpu_color}${cpu_usage}%${NC}"
+    fi
 else
     echo -e "${YELLOW}CPU Usage:${NC} Unable to calculate"
 fi
 
-# System uptime and users
-echo -e "\n${YELLOW}System Uptime and Users:${NC}"
-uptime_info=$(uptime | sed 's/^[ \t]*//')
-echo "  • ${uptime_info}"
+# System uptime and users (only in long mode)
+if [ "$SHORT_MODE" = false ]; then
+    echo -e "\n${YELLOW}System Uptime and Users:${NC}"
+    uptime_info=$(uptime | sed 's/^[ \t]*//')
+    echo "  • ${uptime_info}"
+fi
 
 # GlusterFS-specific information (if mounted)
 if [ $GLUSTER_VOLUMES -gt 0 ]; then
     print_header "GLUSTERFS DETAILS"
-    echo -e "${YELLOW}GlusterFS Volume Information:${NC}"
     
-    # Show GlusterFS mount details
-    df -h 2>/dev/null | grep -i gluster | while read line; do
-        echo "  • $line"
-    done
-    
-    # Try to get Gluster volume info if gluster command is available
-    if command -v gluster &> /dev/null; then
-        echo -e "\n${YELLOW}GlusterFS Volume Status:${NC}"
-        gluster volume info 2>/dev/null | grep -E "Volume Name|Status|Number of Bricks" | while read line; do
+    if [ "$SHORT_MODE" = false ]; then
+        echo -e "${YELLOW}GlusterFS Volume Information:${NC}"
+        df -h 2>/dev/null | grep -i gluster | while read line; do
             echo "  • $line"
         done
+        
+        # Try to get Gluster volume info if gluster command is available
+        if command -v gluster &> /dev/null; then
+            echo -e "\n${YELLOW}GlusterFS Volume Status:${NC}"
+            gluster volume info 2>/dev/null | grep -E "Volume Name|Status|Number of Bricks" | while read line; do
+                echo "  • $line"
+            done
+        else
+            echo -e "\n${YELLOW}Note:${NC} 'gluster' command not available. Install glusterfs-client for detailed volume info."
+        fi
     else
-        echo -e "\n${YELLOW}Note:${NC} 'gluster' command not available. Install glusterfs-client for detailed volume info."
+        # SHORT MODE - Compact Gluster info
+        echo -e "${YELLOW}GlusterFS Mounts:${NC}"
+        df -h 2>/dev/null | grep -i gluster | awk '{printf "  %s @ %s (%s used)\n", $1, $6, $5}'
     fi
 fi
 
-# Optional: Show disk usage summary for important mount points
-echo -e "\n${YELLOW}Top 5 Largest Filesystems by Usage:${NC}"
-df -h -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null | tail -n +2 | \
-    grep -v "snap" | grep -v "loop" | \
-    sort -k5 -rn | head -5 | \
-    awk '{printf "  • %-20s %5s used on %s\n", $1, $5, $6}'
+# Top processes (only in long mode)
+if [ "$SHORT_MODE" = false ]; then
+    print_header "TOP 5 MEMORY-CONSUMING PROCESSES"
+    echo -e "${YELLOW}Processes:${NC}"
+    ps aux --sort=-%mem 2>/dev/null | head -6 | tail -5 | awk '{printf "  • %-20s %5s%% MEM - %s\n", $11, $4, substr($0, index($0,$11))}'
+fi
 
 # Draw final line
 draw_line
-echo -e "${BOLD}${GREEN}✓ Report Complete!${NC}\n"
 
-# GlusterFS-specific recommendations if usage is high
-if [ $GLUSTER_VOLUMES -gt 0 ]; then
+if [ "$SHORT_MODE" = false ]; then
+    echo -e "${BOLD}${GREEN}✓ Report Complete!${NC}\n"
+else
+    echo -e "\n${GREEN}✓ Report Complete - $(date '+%H:%M:%S')${NC}"
+fi
+
+# GlusterFS-specific recommendations if usage is high (only in long mode)
+if [ "$SHORT_MODE" = false ] && [ $GLUSTER_VOLUMES -gt 0 ]; then
     # Check if any GlusterFS mount is above 80% usage
     df -h 2>/dev/null | grep -i gluster | awk '{print $5}' | sed 's/%//' | while read percent; do
         if [ "$percent" -ge 80 ]; then
-            echo -e "${YELLOW}⚠️  GlusterFS Volume Warning: One or more volumes are at ${percent}% usage${NC}"
+            echo -e "\n${YELLOW}⚠️  GlusterFS Volume Warning: One or more volumes are at ${percent}% usage${NC}"
             echo -e "${YELLOW}   Consider adding bricks or cleaning up old data${NC}"
         fi
     done
