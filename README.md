@@ -16,56 +16,222 @@ Collection of useful bash scripts for system monitoring and Kubernetes/Harvester
 
 ## Section 1: System Information Report
 
-A comprehensive script that collects and displays detailed system information.
+A comprehensive script that collects and displays detailed system information with both **full** and **short** output modes.
 
-### Quick Start
+### 🚀 Quick Start
 
 ```bash
+# Full detailed report
 curl -s https://garfieldwtf.github.io/myscripts/system_report.sh | bash
+
+# Short compact report (easy to copy/paste)
+curl -s https://garfieldwtf.github.io/myscripts/system_report.sh | bash -s -- --short
+# or
+curl -s https://garfieldwtf.github.io/myscripts/system_report.sh | bash -s -- -s
+```
+
+### 📊 Output Modes
+
+#### Mode 1: Full Report (Default)
+Comprehensive output with all details, perfect for deep analysis.
+
+```bash
+./system_report.sh
+```
+
+#### Mode 2: Short Report (`-s` or `--short`)
+Compact, easy-to-read output perfect for:
+- Copying into tickets or chat
+- Quick status checks
+- Email reports
+- Monitoring dashboards
+
+```bash
+./system_report.sh --short
+# or
+./system_report.sh -s
 ```
 
 ### What It Shows
 
-- **Disk Information**: Partitions, mount points, usage statistics
-- **Memory Usage**: RAM total, used, available, and swap usage  
-- **CPU Details**: Model, cores, frequency, real-time usage
-- **System Load**: Load average and top memory-consuming processes
+**In Full Mode:**
+- **Disk Information**: Physical disks, partitions, mount points, usage statistics
+- **Memory Usage**: RAM total, used, free, available, and swap usage with color alerts
+- **CPU Details**: Model, cores, threads, sockets, frequency, real-time usage
+- **System Load**: Load average (1,5,15 min) and top memory-consuming processes
+- **GlusterFS Support**: Automatically detects and displays GlusterFS volumes with detailed status
+- **Color Coding**: Green (normal), Yellow (warning), Red (critical)
+
+**In Short Mode:**
+- **Disk Layout**: Compact `lsblk` output showing partition hierarchy
+- **Filesystem Usage**: Table of mount points with sizes and usage percentages
+- **Memory & Swap**: One-line summaries with usage percentages
+- **CPU Info**: Model, cores, load average, and usage percentage
+- **GlusterFS**: Quick summary of GlusterFS mounts if present
 
 ### Usage Examples
 
 ```bash
-# Basic run
-curl -s https://garfieldwtf.github.io/myscripts/system_report.sh | bash
+# Basic full report
+./system_report.sh
 
-# Save to file
-curl -s https://garfieldwtf.github.io/myscripts/system_report.sh | bash > system_report.txt
+# Short compact report
+./system_report.sh -s
 
-# Run on remote server
+# Save full report to file
+./system_report.sh > report.txt
+
+# Save short report to file
+./system_report.sh -s > quick_status.txt
+
+# Run on remote server (full)
 ssh user@server 'curl -s https://garfieldwtf.github.io/myscripts/system_report.sh | bash'
+
+# Run on remote server (short)
+ssh user@server 'curl -s https://garfieldwtf.github.io/myscripts/system_report.sh | bash -s -- --short'
+
+# Copy short report to clipboard (Linux)
+./system_report.sh -s | xclip -selection clipboard
+
+# Copy short report to clipboard (macOS)
+./system_report.sh -s | pbcopy
+
+# Watch system status in real-time (short mode every 5 seconds)
+watch -n 5 './system_report.sh -s'
 ```
 
-### Sample Output
+### Sample Outputs
 
+#### Full Mode Output:
 ```
+╔════════════════════════════════════════════════════════════════════════════╗
+║                         SYSTEM INFORMATION REPORT                         ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+Generated on: 2026-04-30 14:30:22
+Hostname: myserver
+================================================================================
+
 === DISK, PARTITIONS & MOUNTPOINTS ===
-/dev/sda1        100G   45G   55G   45%   /
-/dev/sdb1        900G  300G  600G   33%   /data
+Total Physical Disks: 2
+Disk List:
+  • sda 238.5G
+  • sdb 931.5G
+
+GlusterFS Detection:
+  • Detected 1 GlusterFS mount(s)
+
+Partitions and Mount Points:
+FILESYSTEM                      SIZE       USED            AVAIL           USE%     MOUNTPOINT
+--------------------------------------------------------------------------------------------------------
+/dev/sda1                       100G       45G             55G             45%      /
+/dev/sdb1                       900G       300G            600G            33%      /data
+192.168.1.10:volume1            500G       200G            300G            40%      /mnt/glusterfs
 
 === MEMORY & SWAP UTILIZATION ===
-Total Memory: 15.6Gi
-Used Memory: 8.2Gi
-Usage Percentage: 52%
+RAM Information:
+  • Total Memory: 15.6Gi
+  • Used Memory: 8.2Gi
+  • Free Memory: 7.4Gi
+  • Available Memory: 9.1Gi
+  • Usage Percentage: 52%
+
+SWAP Information:
+  • Total Swap: 2.0Gi
+  • Used Swap: 0Gi
+  • Free Swap: 2.0Gi
+  • Usage Percentage: 0%
 
 === CPU INFORMATION ===
-CPU Model: Intel Core i7-10750H
-Total Cores: 12
+CPU Details:
+  • CPU Model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
+  • Total Cores: 12
+  • Threads per Core: 2
+  • Sockets: 1
+  • Cores per Socket: 12
+  • CPU Frequency: 2600.000 MHz
+
+=== SYSTEM LOAD & CPU USAGE ===
+Load Average (1, 5, 15 min): 2.50, 2.30, 2.10
 CPU Usage: 25%
+
+System Uptime and Users:
+  • 14:30:22 up 5 days, 3:22, 3 users, load average: 2.50, 2.30, 2.10
+
+=== GLUSTERFS DETAILS ===
+GlusterFS Volume Information:
+  • 192.168.1.10:volume1 500G 200G 300G 40% /mnt/glusterfs
+
+GlusterFS Volume Status:
+  • Volume Name: volume1
+  • Status: Started
+  • Number of Bricks: 3
+
+=== TOP 5 MEMORY-CONSUMING PROCESSES ===
+Processes:
+  • chrome                15.2% MEM - /opt/google/chrome/chrome
+  • docker                12.1% MEM - /usr/bin/dockerd
+  • mysql                 8.5% MEM  - /usr/sbin/mysqld
+
+================================================================================
+✓ Report Complete!
+```
+
+#### Short Mode Output (`-s`):
+```
+========================================
+System Report - 2026-04-30 14:30:22
+Host: myserver
+========================================
+
+[DISK, PARTITIONS & MOUNTPOINTS]
+Disk Layout:
+sda    238.5G disk
+├─sda1 100G   part /
+└─sda2 138.5G part [SWAP]
+sdb    931.5G disk
+└─sdb1 931.5G part /data
+
+Filesystem Usage:
+MOUNTPOINT                SIZE     USED     AVAIL    USE%
+----------------------------------------------------------
+/                         100G     45G      55G      45%
+/data                     900G     300G     600G     33%
+/mnt/glusterfs            500G     200G     300G     40%
+
+[MEMORY & SWAP UTILIZATION]
+RAM: 8.2Gi / 15.6Gi used | Available: 9.1Gi
+Usage: 52%
+SWAP: 0Gi / 2.0Gi used (0%)
+
+[CPU INFORMATION]
+CPU: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
+Cores: 12
+
+[SYSTEM LOAD & CPU USAGE]
+Load Average: 2.50, 2.30, 2.10
+CPU Usage: 25%
+
+[GLUSTERFS DETAILS]
+GlusterFS Mounts:
+  192.168.1.10:volume1 @ /mnt/glusterfs (40% used)
+
+----------------------------------------
+✓ Report Complete - 14:30:25
 ```
 
 ### Requirements
 
 - Linux or WSL
-- Standard utilities: `df`, `free`, `lscpu`, `top`, `ps`
+- Standard utilities: `df`, `free`, `lscpu`, `top`, `ps`, `lsblk`
+
+### Color Legend
+
+| Color | Meaning | Range |
+|-------|---------|-------|
+| 🟢 **Green** | Normal/Healthy | 0-74% usage |
+| 🟡 **Yellow** | Warning | 75-89% usage |
+| 🔴 **Red** | Critical | 90-100% usage |
 
 ---
 
@@ -127,34 +293,7 @@ chmod +x check-vm-reserved-memory.sh
 
 # Quiet mode for cron jobs
 ./check-vm-reserved-memory.sh -q -w 150 -d 600
-
-# Custom log directory
-./check-vm-reserved-memory.sh -l /var/log/vm-monitor
 ```
-
-### Understanding the Output
-
-The script categorizes VMs into three states:
-
-- **OK** (🟢 Green): Overhead ≤ Warning threshold
-- **WARNING** (🟡 Yellow): Warning < Overhead ≤ Danger  
-- **DANGER** (🔴 Red): Overhead > Danger threshold
-
-### Log Files
-
-The script creates two types of logs:
-
-**1. Execution Log** (`/usr/local/oom-logs/execution.log`)
-```
-Scan: 2026-04-29 14:30:22
-production/web-01: overhead=250MB, status=WARNING
-production/db-01: overhead=850MB, status=DANGER
-Summary: Total=10, Warning=1, Danger=1
-```
-
-**2. VM Detail Logs** (`/usr/local/oom-logs/<vm-hostname>.log`)
-- Created only for WARNING/DANGER VMs
-- Includes VM configuration, container specs, and fix recommendations
 
 ### Exit Codes
 
@@ -173,55 +312,7 @@ Summary: Total=10, Warning=1, Danger=1
 
 # Run hourly with custom thresholds
 0 * * * * /usr/local/bin/check-vm-reserved-memory.sh -w 200 -d 800 -q
-
-# Run daily at 2 AM with verbose logging
-0 2 * * * /usr/local/bin/check-vm-reserved-memory.sh --verbose >> /var/log/vm-check.log 2>&1
 ```
-
-### Fix Recommendations
-
-When a VM enters WARNING or DANGER state, the script provides kubectl commands to increase reserved memory:
-
-```bash
-# For WARNING state
-kubectl annotate vm <vm-name> -n <namespace> \
-  harvesterhci.io/reservedMemory="<current+200>Mi" --overwrite
-
-# For DANGER state  
-kubectl annotate vm <vm-name> -n <namespace> \
-  harvesterhci.io/reservedMemory="<current+500>Mi" --overwrite
-```
-
-### Troubleshooting
-
-<details>
-<summary><b>kubectl: command not found</b></summary>
-
-```bash
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-chmod +x kubectl
-sudo mv kubectl /usr/local/bin/
-```
-</details>
-
-<details>
-<summary><b>jq: command not found</b></summary>
-
-```bash
-sudo apt-get install jq    # Ubuntu/Debian
-sudo yum install jq        # RHEL/CentOS
-```
-</details>
-
-<details>
-<summary><b>No VMs found</b></summary>
-
-```bash
-# Verify kubectl connectivity
-kubectl cluster-info
-kubectl get vm --all-namespaces
-```
-</details>
 
 ---
 
@@ -243,9 +334,69 @@ echo 'export PATH="$HOME/scripts:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
+### Create Convenient Aliases
+
+Add these to your `~/.bashrc`:
+
+```bash
+# System report aliases
+alias sysinfo='curl -s https://garfieldwtf.github.io/myscripts/system_report.sh | bash'
+alias sysinfo-short='curl -s https://garfieldwtf.github.io/myscripts/system_report.sh | bash -s -- --short'
+
+# VM checker alias
+alias vm-check='~/scripts/check-vm-reserved-memory.sh'
+```
+
 ---
 
-## 🔒 Security Notes
+## 🔧 Troubleshooting
+
+<details>
+<summary><b>Script 1: "command not found" errors</b></summary>
+
+Install missing utilities:
+```bash
+# Ubuntu/Debian
+sudo apt-get install coreutils procps util-linux
+
+# RHEL/CentOS
+sudo yum install coreutils procps-ng util-linux
+```
+</details>
+
+<details>
+<summary><b>Script 1: Short mode not working</b></summary>
+
+Make sure you're using the latest version:
+```bash
+curl -s https://garfieldwtf.github.io/myscripts/system_report.sh | head -20
+# Should show version with --short support
+```
+</details>
+
+<details>
+<summary><b>Script 2: "kubectl: command not found"</b></summary>
+
+```bash
+# Install kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin/
+```
+</details>
+
+<details>
+<summary><b>Script 2: "jq: command not found"</b></summary>
+
+```bash
+sudo apt-get install jq    # Ubuntu/Debian
+sudo yum install jq        # RHEL/CentOS
+```
+</details>
+
+---
+
+## 🔒 Security
 
 Both scripts are **read-only** and:
 - Make no system changes
